@@ -15,7 +15,7 @@ def main():
     parser.add_argument(
         "dataset_path",
         nargs="?",
-        default="dataset/data_multilayer.csv",
+        default="datasets/data_multilayer.csv",
         type=str,
         help="Path to the dataset file (e.g., dataset.csv)",
     )
@@ -29,7 +29,7 @@ def main():
     parser.add_argument(
         "output_dir",
         nargs="?",
-        default="dataset/split/",
+        default="datasets/split/",
         type=str,
         help="Path to the output directory for the split datasets",
     )

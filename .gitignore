@@ -1,0 +1,6 @@
+*/__pycache__
+datasets/split
+subjects/
+.vscode/
+venv/
+__pycache__/
