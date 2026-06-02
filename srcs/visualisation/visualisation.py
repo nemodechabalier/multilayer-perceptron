@@ -23,9 +23,29 @@ def classes_distribution(df: DataFrame, show: bool = False, target_column: str =
 def heatmap_correlation(df: DataFrame, show: bool = False, target_column: str = TARGET_COLUMN) -> None:
     """Visualise the correlation matrix of the dataset."""
     numeric_df = df.select_dtypes(include=[np.number]).drop(columns=[ID_COLUMN], errors="ignore")
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(numeric_df.corr(), annot=True, cmap="coolwarm", fmt=".2f")
+    correlation = numeric_df.corr()
+    if correlation.empty:
+        return
+
+    heatmap_size = max(10, min(18, 0.45 * len(correlation.columns)))
+    annotate = len(correlation.columns) <= 12
+    mask = np.triu(np.ones_like(correlation, dtype=bool))
+
+    plt.figure(figsize=(heatmap_size, heatmap_size))
+    sns.heatmap(
+        correlation,
+        mask=mask,
+        annot=annotate,
+        cmap="coolwarm",
+        fmt=".2f",
+        square=True,
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.8},
+    )
     plt.title("Correlation Matrix")
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
+    plt.tight_layout()
     if show:
         plt.show()
     plt.savefig("visu/heatmap/correlation_matrix.png", bbox_inches="tight")
