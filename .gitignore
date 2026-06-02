@@ -1,6 +1,7 @@
 */__pycache__
 datasets/split
-subjects/
+subject/
 .vscode/
 venv/
 __pycache__/
+visu/

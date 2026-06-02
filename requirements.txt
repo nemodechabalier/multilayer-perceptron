@@ -1,0 +1,6 @@
+# Dépendances pour le projet multilayer-perceptron
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn

@@ -34,7 +34,7 @@ def split_dataset(dataset_path: Path, train_size: float, output_dir: Path) -> Da
     except Exception as exc:
         print(f"Error splitting dataset: {exc}")
         raise SystemExit(1)
-    print(test.head())
+    print(f"Number of null values in each column:\n{df.isnull().sum()}")
     print(f"Saving split datasets to {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
     save_dataset(train, output_dir / "train.csv")
