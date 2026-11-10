@@ -6,7 +6,7 @@ from typing import Optional
 DATASET_COLUMNS = ["sample_id", "diagnosis"] + [f"feature_{index}" for index in range(1, 31)]
 
 
-def _normalize_dataset(dataset: DataFrame) -> DataFrame:
+def _harmonize_dataset(dataset: DataFrame) -> DataFrame:
     """Attach generic names and handle both raw and already-saved CSV files."""
     if len(dataset.columns) != len(DATASET_COLUMNS):
         return dataset
@@ -24,12 +24,12 @@ def _normalize_dataset(dataset: DataFrame) -> DataFrame:
 
     return dataset
 
-def load_dataset(path: str, normalize: bool = False) -> Optional[DataFrame]:
+def load_dataset(path: str, harmonize: bool = False) -> Optional[DataFrame]:
     """Load a CSV file and display its dimensions."""
     try:
         dataset = pd.read_csv(path, header=None)
-        if normalize:
-            dataset = _normalize_dataset(dataset)
+        if harmonize:
+            dataset = _harmonize_dataset(dataset)
         print(f"Loading dataset of dimensions {dataset.shape}")
         return dataset
     except FileNotFoundError:

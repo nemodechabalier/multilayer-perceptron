@@ -1,0 +1,5 @@
+layer: [24,24]
+epochs: 84
+batch_size: 8
+learning_rate: 0.0314
+correlation: 0.99

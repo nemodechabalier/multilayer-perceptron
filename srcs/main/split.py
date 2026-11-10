@@ -24,7 +24,7 @@ def main():
         nargs="?",
         default=0.8,
         type=float,
-        help="Proportion of the dataset to include in the training set (e.g., 0.8 for 80%)",
+        help="Proportion of the dataset to include in the training set (e.g., 0.8 for 80%%)",
     )
     parser.add_argument(
         "output_dir",
@@ -33,8 +33,10 @@ def main():
         type=str,
         help="Path to the output directory for the split datasets",
     )
+    args = parser.parse_args()
+
     try:
-        split_dataset(Path(parser.parse_args().dataset_path), parser.parse_args().train_size, Path(parser.parse_args().output_dir))
+        split_dataset(Path(args.dataset_path), args.train_size, Path(args.output_dir))
     except Exception as exc:
         print(f"Error splitting dataset: {exc}")
         raise SystemExit(1)

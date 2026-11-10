@@ -16,14 +16,15 @@ def split_dataset(dataset_path: Path, train_size: float, output_dir: Path) -> Da
     if train_size <= 0.1 or train_size >= 0.9:
         raise ValueError("train_size must be a float between 0.1 and 0.9.")
     try:
-        df = load_dataset(dataset_path, normalize=False)
+        # Normalize columns once so split outputs keep semantic headers.
+        df = load_dataset(dataset_path, harmonize=True)
         if df is None:
             raise ValueError("Failed to load dataset.")
     except Exception as exc:
         print(f"Error loading dataset: {exc}")
         raise SystemExit(1)
     try:
-        label_col = df.columns[1]
+        label_col = "diagnosis"
         train, test = train_test_split(df,
                                                  train_size=train_size,
                                                  stratify=df[label_col],
@@ -40,5 +41,4 @@ def split_dataset(dataset_path: Path, train_size: float, output_dir: Path) -> Da
     save_dataset(train, output_dir / "train.csv")
     save_dataset(test, output_dir / "test.csv")
     return train, test
-    
     
