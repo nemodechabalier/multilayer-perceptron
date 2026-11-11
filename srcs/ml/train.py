@@ -1,5 +1,7 @@
 import numpy as np
 from math import sqrt
+from pandas import DataFrame
+
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
@@ -7,6 +9,12 @@ def sigmoid(z):
 def sigmoid_deriv(z):
     s = sigmoid(z)
     return s * (1 - s)
+
+
+def softmax(z):
+    exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
+    return exp_z / np.sum(exp_z, axis=1, keepdims=True)
+
 
 # def select_features(x_train, threshold):
 #     """Return the indices of the columns to keep (computed on train only)."""
@@ -67,7 +75,7 @@ def fit_normalizer(df, feature_cols=None):
 
     return norm_df, stats, feature_cols
 
-def init_network(sizes, seed=1):
+def init_network(sizes, seed=1) -> dict :
     rng = np.random.default_rng(seed)   # créé une seule fois
     weights, biases = [], []
     for n_in, n_out in zip(sizes[:-1], sizes[1:]):
@@ -76,19 +84,60 @@ def init_network(sizes, seed=1):
         biases.append(np.zeros(n_out))
     return {"W": weights, "b": biases}
 
+def forward(X, multilayer):
+    A = X
+    n_layers = len(multilayer["W"])
+    for i, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
+        Z = A @ W + b
+        if i == n_layers - 1:
+            A = softmax(Z)
+        else:
+            A = sigmoid(Z)
+    return A
+
+def mini_batch(config, multilayer, X, y):
+    alpha = config.get("learning_rate")
+    num_epochs = config.get("epochs")
+    batch_size = config.get("batch_size")
+    m = len(y)
+    for epoch in range(num_epochs):
+        indices = np.random.permutation(m)
+        X_shuffled = X[indices]
+        y_shuffled = y[indices]
+        for start_idx in range(0, m, batch_size):
+            end_idx = min(start_idx + batch_size, m)
+            X_batch = X_shuffled[start_idx:end_idx]
+            y_batch = y_shuffled[start_idx:end_idx]
+            A = X_batch
+            n_layers = len(multilayer["W"])
+            for i, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
+                Z = A @ W + b
+                if i == n_layers - 1:
+                    A = softmax(Z)
+                else:
+                    A = sigmoid(Z)
+
+
+
+
+
 def train_models(df, config):
     # clean_datasets = cleaning_datasets(datasets, config)
+
     norm_df, norm_stats, feature_cols = fit_normalizer(df)
 
     print(f"Training models with config: {config}")
 
+    diag = (norm_df["diagnosis"] == "M").astype(np.float64).to_numpy()
+    y = np.column_stack((diag ,np.zeros_like(diag)))
+
     X = norm_df[feature_cols].to_numpy(dtype=np.float64)
-    y = (norm_df["diagnosis"] == "M").astype(np.float64).to_numpy()
+    # print(y)
     input_dim = X.shape[1]
     hidden_dims = config.get("layer")
     output_dim = 2
     sizes = [input_dim] + hidden_dims + [output_dim]
     multilayer = init_network(sizes)
-
     for W, b in zip(multilayer["W"], multilayer["b"]):
         print(W.shape, b.shape)
+    mini_batch(config, multilayer, X, y)
