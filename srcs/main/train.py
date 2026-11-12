@@ -55,11 +55,18 @@ def validate_config(config: dict) -> dict:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--dataset',
+        '--dataset_train',
         type=str,
         nargs='?',
         default='datasets/split/train.csv',
-        help='Path to the training dataset CSV file'
+        help='Path to the training dataset train CSV file'
+    )
+    parser.add_argument(
+        '--dataset_test',
+        type=str,
+        nargs='?',
+        default='datasets/split/test.csv',
+        help='Path to the training dataset teat CSV file'
     )
     parser.add_argument(
         '--config',
@@ -70,11 +77,11 @@ def main():
     )
     args = parser.parse_args()
     try:
-        dataset = load_dataset(args.dataset, harmonize=True)
-
+        dataset_train = load_dataset(args.dataset_train, harmonize=True)
+        dataset_test = load_dataset(args.dataset_test, harmonize=True)
         config = load_config(args.config)
         validate_config(config)
-        train_models(dataset, config)
+        train_models(dataset_train, dataset_test,config)
     except Exception as exc:
         parser.error(str(exc))
 

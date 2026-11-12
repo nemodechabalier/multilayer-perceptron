@@ -1,5 +1,5 @@
 import numpy as np
-from math import sqrt
+from math import sqrt, log
 from pandas import DataFrame
 
 
@@ -85,21 +85,52 @@ def init_network(sizes, seed=1) -> dict :
     return {"W": weights, "b": biases}
 
 def forward(X, multilayer):
+    activations = [X]
     A = X
     n_layers = len(multilayer["W"])
     for i, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
         Z = A @ W + b
-        if i == n_layers - 1:
-            A = softmax(Z)
-        else:
-            A = sigmoid(Z)
-    return A
+        A = softmax(Z) if i == n_layers - 1 else sigmoid(Z)
+        activations.append(A)
+    return activations
 
-def mini_batch(config, multilayer, X, y):
+def cross_entropy(P, Y):
+    epsilon = 1e-15
+    P = np.clip(P, epsilon, 1. - epsilon)
+    
+    return -np.mean(np.sum(Y * np.log(P), axis=1))
+
+def binary_cross_entropy(P, Y):
+    epsilon = 1e-15
+    P = np.clip(P, epsilon, 1. - epsilon)
+    
+    return -np.mean(Y * np.log(P) + (1 - Y) * np.log(1 - P))
+
+def backward(activations, Y, multilayer, n_layers):
+    dW = [None] * n_layers
+    db = [None] * n_layers
+    m = Y.shape[0]
+    delta = activations[-1] - Y
+    for l, (W ,b) in reversed(list(enumerate(zip(multilayer["W"], multilayer["b"])))):
+        dW[l] = (activations[l].T @ delta) / m
+        db[l] = delta.sum(axis=0) / m
+        if l > 0:
+            A = activations[l]
+            delta = (delta @ W.T) * A * (1 - A)
+    return dW, db
+
+def evaluate(X, y, multilayer):
+    P = forward(X, multilayer)[-1]
+    loss = cross_entropy(P, y)
+    acc = np.mean(np.argmax(P, axis=1) == np.argmax(y, axis=1))
+    return loss, acc
+
+def mini_batch(config, multilayer, X, y, X_test, y_test):
     alpha = config.get("learning_rate")
     num_epochs = config.get("epochs")
     batch_size = config.get("batch_size")
     m = len(y)
+    history = {"loss": [], "acc": [], "val_loss": [], "val_acc": []}
     for epoch in range(num_epochs):
         indices = np.random.permutation(m)
         X_shuffled = X[indices]
@@ -108,36 +139,37 @@ def mini_batch(config, multilayer, X, y):
             end_idx = min(start_idx + batch_size, m)
             X_batch = X_shuffled[start_idx:end_idx]
             y_batch = y_shuffled[start_idx:end_idx]
-            A = X_batch
             n_layers = len(multilayer["W"])
-            for i, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
-                Z = A @ W + b
-                if i == n_layers - 1:
-                    A = softmax(Z)
-                else:
-                    A = sigmoid(Z)
+            acts = forward(X_batch, multilayer)
+            dW, db = backward(acts, y_batch, multilayer, n_layers)
+            for l, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
+                W -= alpha * dW[l] ; b -= alpha * db[l]
+        loss, acc = evaluate(X, y, multilayer)
+        val_loss, val_acc = evaluate(X_test, y_test, multilayer)
+        for key, value in zip(history, (loss, acc, val_loss, val_acc)):
+            history[key].append(value)
+        print(f"epoch {epoch + 1:02d}/{num_epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f}"
+              f" - acc: {acc:.4f} - val_acc: {val_acc:.4f}")
+    return multilayer, history
 
 
-
-
-
-def train_models(df, config):
+def train_models(df, df_test,config):
     # clean_datasets = cleaning_datasets(datasets, config)
 
     norm_df, norm_stats, feature_cols = fit_normalizer(df)
+    norm_df_test, norm_stats_tets, feature_cols_test = fit_normalizer(df_test)
 
     print(f"Training models with config: {config}")
 
     diag = (norm_df["diagnosis"] == "M").astype(np.float64).to_numpy()
-    y = np.column_stack((diag ,np.zeros_like(diag)))
-
+    y = np.column_stack((diag ,1 - diag))
     X = norm_df[feature_cols].to_numpy(dtype=np.float64)
-    # print(y)
+    diag_test = (norm_df_test["diagnosis"] == "M").astype(np.float64).to_numpy()
+    y_test = np.column_stack((diag_test ,1 - diag_test))
+    X_test = norm_df_test[feature_cols_test].to_numpy(dtype=np.float64)
     input_dim = X.shape[1]
     hidden_dims = config.get("layer")
     output_dim = 2
     sizes = [input_dim] + hidden_dims + [output_dim]
     multilayer = init_network(sizes)
-    for W, b in zip(multilayer["W"], multilayer["b"]):
-        print(W.shape, b.shape)
-    mini_batch(config, multilayer, X, y)
+    multilayer, history = mini_batch(config, multilayer, X, y, X_test, y_test)
