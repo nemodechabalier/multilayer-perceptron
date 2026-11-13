@@ -78,10 +78,10 @@ def main():
     args = parser.parse_args()
     try:
         dataset_train = load_dataset(args.dataset_train, harmonize=True)
-        dataset_test = load_dataset(args.dataset_test, harmonize=True)
+        dataset_valid = load_dataset(args.dataset_test, harmonize=True)
         config = load_config(args.config)
         validate_config(config)
-        train_models(dataset_train, dataset_test,config)
+        train_models(dataset_train, dataset_valid, config)
     except Exception as exc:
         parser.error(str(exc))
 

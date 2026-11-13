@@ -1,20 +1,10 @@
 import numpy as np
 from math import sqrt, log
 from pandas import DataFrame
-
-
-def sigmoid(z):
-    return 1 / (1 + np.exp(-z))
-
-def sigmoid_deriv(z):
-    s = sigmoid(z)
-    return s * (1 - s)
-
-
-def softmax(z):
-    exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
-    return exp_z / np.sum(exp_z, axis=1, keepdims=True)
-
+from matplotlib import pyplot as plt
+from .utils import save
+from .mathematical import apply_normalizer, forward, evaluate, backward
+import json
 
 # def select_features(x_train, threshold):
 #     """Return the indices of the columns to keep (computed on train only)."""
@@ -54,6 +44,8 @@ def softmax(z):
 #         config["kept_features"] = keep
 #     return datasets
 
+
+
 def fit_normalizer(df, feature_cols=None):
     """Fit sur train: calcule mean/std et renvoie train normalise + stats."""
     norm_df = df.copy()
@@ -84,48 +76,18 @@ def init_network(sizes, seed=1) -> dict :
         biases.append(np.zeros(n_out))
     return {"W": weights, "b": biases}
 
-def forward(X, multilayer):
-    activations = [X]
-    A = X
-    n_layers = len(multilayer["W"])
-    for i, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
-        Z = A @ W + b
-        A = softmax(Z) if i == n_layers - 1 else sigmoid(Z)
-        activations.append(A)
-    return activations
+def visualisation(y_train, y_valid, title):
+    x = list(range(1, len(y_train) + 1))
+    plt.figure()
+    plt.plot(x, y_train, label = f'{title} train', color='red', linewidth=1.2, alpha=0.8)
+    plt.plot(x, y_valid, label = f'{title} valid', color='blue', linewidth=1.2, alpha=0.8)
+    plt.xlabel("Epochs")
+    plt.ylabel(title)
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
-def cross_entropy(P, Y):
-    epsilon = 1e-15
-    P = np.clip(P, epsilon, 1. - epsilon)
-    
-    return -np.mean(np.sum(Y * np.log(P), axis=1))
-
-def binary_cross_entropy(P, Y):
-    epsilon = 1e-15
-    P = np.clip(P, epsilon, 1. - epsilon)
-    
-    return -np.mean(Y * np.log(P) + (1 - Y) * np.log(1 - P))
-
-def backward(activations, Y, multilayer, n_layers):
-    dW = [None] * n_layers
-    db = [None] * n_layers
-    m = Y.shape[0]
-    delta = activations[-1] - Y
-    for l, (W ,b) in reversed(list(enumerate(zip(multilayer["W"], multilayer["b"])))):
-        dW[l] = (activations[l].T @ delta) / m
-        db[l] = delta.sum(axis=0) / m
-        if l > 0:
-            A = activations[l]
-            delta = (delta @ W.T) * A * (1 - A)
-    return dW, db
-
-def evaluate(X, y, multilayer):
-    P = forward(X, multilayer)[-1]
-    loss = cross_entropy(P, y)
-    acc = np.mean(np.argmax(P, axis=1) == np.argmax(y, axis=1))
-    return loss, acc
-
-def mini_batch(config, multilayer, X, y, X_test, y_test):
+def mini_batch(config, multilayer, X, y, X_valid, y_test):
     alpha = config.get("learning_rate")
     num_epochs = config.get("epochs")
     batch_size = config.get("batch_size")
@@ -145,7 +107,7 @@ def mini_batch(config, multilayer, X, y, X_test, y_test):
             for l, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
                 W -= alpha * dW[l] ; b -= alpha * db[l]
         loss, acc = evaluate(X, y, multilayer)
-        val_loss, val_acc = evaluate(X_test, y_test, multilayer)
+        val_loss, val_acc = evaluate(X_valid, y_test, multilayer)
         for key, value in zip(history, (loss, acc, val_loss, val_acc)):
             history[key].append(value)
         print(f"epoch {epoch + 1:02d}/{num_epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f}"
@@ -153,23 +115,27 @@ def mini_batch(config, multilayer, X, y, X_test, y_test):
     return multilayer, history
 
 
-def train_models(df, df_test,config):
+def train_models(df, df_valid,config):
     # clean_datasets = cleaning_datasets(datasets, config)
+    print(f"Training models with config: {config}")
 
     norm_df, norm_stats, feature_cols = fit_normalizer(df)
-    norm_df_test, norm_stats_tets, feature_cols_test = fit_normalizer(df_test)
+    norm_df_valid = apply_normalizer(df_valid, norm_stats, feature_cols)
 
-    print(f"Training models with config: {config}")
+    print(norm_stats)
 
     diag = (norm_df["diagnosis"] == "M").astype(np.float64).to_numpy()
     y = np.column_stack((diag ,1 - diag))
     X = norm_df[feature_cols].to_numpy(dtype=np.float64)
-    diag_test = (norm_df_test["diagnosis"] == "M").astype(np.float64).to_numpy()
-    y_test = np.column_stack((diag_test ,1 - diag_test))
-    X_test = norm_df_test[feature_cols_test].to_numpy(dtype=np.float64)
+    diag_valid = (norm_df_valid["diagnosis"] == "M").astype(np.float64).to_numpy()
+    y_valid = np.column_stack((diag_valid ,1 - diag_valid))
+    X_valid = norm_df_valid[feature_cols].to_numpy(dtype=np.float64)
     input_dim = X.shape[1]
     hidden_dims = config.get("layer")
     output_dim = 2
     sizes = [input_dim] + hidden_dims + [output_dim]
     multilayer = init_network(sizes)
-    multilayer, history = mini_batch(config, multilayer, X, y, X_test, y_test)
+    multilayer, history = mini_batch(config, multilayer, X, y, X_valid, y_valid)
+    visualisation(history["acc"], history["val_acc"], "Accuracy")
+    visualisation(history["loss"], history["val_loss"], "Loss")
+    save(multilayer, norm_stats, "datasets/model.json",feature_cols)

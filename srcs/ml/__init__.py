@@ -1,2 +1,3 @@
 from .train import train_models
-__all__ = ["train_models"]
+from .predict import predict
+__all__ = ["train_models", "predict"]

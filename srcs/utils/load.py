@@ -1,10 +1,17 @@
 import pandas as pd
 from pandas import DataFrame
 from typing import Optional
+import json
 
 
 DATASET_COLUMNS = ["sample_id", "diagnosis"] + [f"feature_{index}" for index in range(1, 31)]
 
+def load_json(path: str):
+    """Load and return JSON data from a file path."""
+
+    with open(path) as f:
+        data = json.load(f)
+    return data
 
 def _harmonize_dataset(dataset: DataFrame) -> DataFrame:
     """Attach generic names and handle both raw and already-saved CSV files."""
