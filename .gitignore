@@ -5,4 +5,4 @@ subject/
 venv/
 __pycache__/
 visu/
-history/
+metrics/
