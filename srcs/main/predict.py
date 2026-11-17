@@ -34,7 +34,6 @@ def main() -> int:
     try:
 
         df = load_dataset(args.datasets, harmonize=True)
-        print(df)
         if df is None:
             print("Unable to load dataset.")
             return 1

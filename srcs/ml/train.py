@@ -2,9 +2,22 @@ import numpy as np
 from math import sqrt, log
 from pandas import DataFrame
 from matplotlib import pyplot as plt
-from .utils import save
-from .mathematical import apply_normalizer, forward, evaluate, backward
 import json
+from pathlib import Path
+from typing import Any
+import sys
+
+from .mathematical import apply_normalizer, forward, evaluate, backward
+from .utils import save
+
+from datetime import datetime
+CURRENT_DIR = Path(__file__).resolve().parent
+SRCS_DIR = CURRENT_DIR.parent
+if str(SRCS_DIR) not in sys.path:
+    sys.path.insert(0, str(SRCS_DIR))
+from utils import TrainState
+
+
 
 # def select_features(x_train, threshold):
 #     """Return the indices of the columns to keep (computed on train only)."""
@@ -85,57 +98,68 @@ def visualisation(y_train, y_valid, title):
     plt.ylabel(title)
     plt.legend()
     plt.grid(True)
+    plt.savefig(f"visu/train/{title}")
     plt.show()
 
-def mini_batch(config, multilayer, X, y, X_valid, y_test):
-    alpha = config.get("learning_rate")
-    num_epochs = config.get("epochs")
-    batch_size = config.get("batch_size")
-    m = len(y)
+def mini_batch(state: TrainState):
+    alpha = state.config.get("learning_rate")
+    num_epochs = state.config.get("epochs")
+    batch_size = state.config.get("batch_size")
+    rng = np.random.default_rng(state.config.get("seed"))
+    print("test1")
+    m = len(state.y_train)
+    print("test2")
+
     history = {"loss": [], "acc": [], "val_loss": [], "val_acc": []}
     for epoch in range(num_epochs):
-        indices = np.random.permutation(m)
-        X_shuffled = X[indices]
-        y_shuffled = y[indices]
+        indices = rng.permutation(m)
+        X_shuffled = state.X_train[indices]
+        y_shuffled = state.y_train[indices]
         for start_idx in range(0, m, batch_size):
             end_idx = min(start_idx + batch_size, m)
             X_batch = X_shuffled[start_idx:end_idx]
             y_batch = y_shuffled[start_idx:end_idx]
-            n_layers = len(multilayer["W"])
-            acts = forward(X_batch, multilayer)
-            dW, db = backward(acts, y_batch, multilayer, n_layers)
-            for l, (W, b) in enumerate(zip(multilayer["W"], multilayer["b"])):
+            n_layers = len(state.multilayer["W"])
+            acts = forward(X_batch, state.multilayer)
+            dW, db = backward(acts, y_batch, state.multilayer, n_layers)
+            for l, (W, b) in enumerate(zip(state.multilayer["W"], state.multilayer["b"])):
                 W -= alpha * dW[l] ; b -= alpha * db[l]
-        loss, acc = evaluate(X, y, multilayer)
-        val_loss, val_acc = evaluate(X_valid, y_test, multilayer)
+        loss, acc, val_loss, val_acc = evaluate(state)
         for key, value in zip(history, (loss, acc, val_loss, val_acc)):
             history[key].append(value)
         print(f"epoch {epoch + 1:02d}/{num_epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f}"
               f" - acc: {acc:.4f} - val_acc: {val_acc:.4f}")
-    return multilayer, history
+    return state.multilayer, history
 
 
-def train_models(df, df_valid,config):
+def train_models(state: TrainState):
     # clean_datasets = cleaning_datasets(datasets, config)
-    print(f"Training models with config: {config}")
+    print(f"Training models with config: {state.config}")
 
-    norm_df, norm_stats, feature_cols = fit_normalizer(df)
-    norm_df_valid = apply_normalizer(df_valid, norm_stats, feature_cols)
-
-    print(norm_stats)
+    norm_df, norm_stats, feature_cols = fit_normalizer(state.df_train)
+    norm_df_valid = apply_normalizer(state.df_valid, norm_stats, feature_cols)
 
     diag = (norm_df["diagnosis"] == "M").astype(np.float64).to_numpy()
-    y = np.column_stack((diag ,1 - diag))
-    X = norm_df[feature_cols].to_numpy(dtype=np.float64)
+    state.y_train = np.column_stack((diag ,1 - diag))
+    state.X_train = norm_df[feature_cols].to_numpy(dtype=np.float64)
     diag_valid = (norm_df_valid["diagnosis"] == "M").astype(np.float64).to_numpy()
-    y_valid = np.column_stack((diag_valid ,1 - diag_valid))
-    X_valid = norm_df_valid[feature_cols].to_numpy(dtype=np.float64)
-    input_dim = X.shape[1]
-    hidden_dims = config.get("layer")
+    state.y_valid = np.column_stack((diag_valid ,1 - diag_valid))
+    state.X_valid = norm_df_valid[feature_cols].to_numpy(dtype=np.float64)
+    input_dim = state.X_train.shape[1]
+    hidden_dims = state.config.get("layer")
     output_dim = 2
     sizes = [input_dim] + hidden_dims + [output_dim]
-    multilayer = init_network(sizes)
-    multilayer, history = mini_batch(config, multilayer, X, y, X_valid, y_valid)
+    state.multilayer = init_network(sizes, state.config.get("seed"))
+    state.multilayer, history = mini_batch(state)
     visualisation(history["acc"], history["val_acc"], "Accuracy")
     visualisation(history["loss"], history["val_loss"], "Loss")
-    save(multilayer, norm_stats, "datasets/model.json",feature_cols)
+    save(state.multilayer, norm_stats, "datasets/model.json",feature_cols)
+    payload = {"config": state.config, "history": history}
+    layers = [input_dim] + hidden_dims + [output_dim]
+    dir_hist = state.config.get("path")
+    Path(dir_hist).mkdir(parents=True, exist_ok=True)
+    dir_hist = dir_hist + f"metriques_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
+    with open(dir_hist, "w", encoding="utf-8") as file_obj:
+            json.dump(payload, file_obj, indent=2)
+
+

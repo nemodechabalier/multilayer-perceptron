@@ -9,8 +9,10 @@ SRCS_DIR = CURRENT_DIR.parent
 if str(SRCS_DIR) not in sys.path:
     sys.path.insert(0, str(SRCS_DIR))
 from ml import train_models
-from utils import load_dataset, Datasets
-from data import split_dataset
+from utils import load_dataset, TrainState
+# from data import split_dataset
+import random
+import sys
 
 KEYS = ("layer", "epochs", "batch_size", "learning_rate", "correlation")
 
@@ -50,6 +52,19 @@ def validate_config(config: dict) -> dict:
     if type(cor) not in (int, float) or not (0 <= cor <= 1):
         raise ValueError("'correlation' must be a number between 0 and 1.")
 
+    seed = config["seed"]
+    if seed == "random":
+        config["seed"] = random.randint(1, sys.maxsize)
+    elif not isinstance(seed, (int)) or seed < 0:
+        raise ValueError("'seed' must be a int > 0 or 'random'")
+
+    path = config["path"]
+    if not isinstance(path, str) or len(path) < 1:
+        raise ValueError("'path' must be a str, not null.")
+    if path[-1] != '/':
+        config["path"] = path + "/"
+
+
     return {k: config[k] for k in KEYS}
 
 def main():
@@ -77,11 +92,12 @@ def main():
     )
     args = parser.parse_args()
     try:
-        dataset_train = load_dataset(args.dataset_train, harmonize=True)
-        dataset_valid = load_dataset(args.dataset_test, harmonize=True)
-        config = load_config(args.config)
-        validate_config(config)
-        train_models(dataset_train, dataset_valid, config)
+        state = TrainState
+        state.df_train = load_dataset(args.dataset_train, harmonize=True)
+        state.df_valid = load_dataset(args.dataset_test, harmonize=True)
+        state.config = load_config(args.config)
+        validate_config(state.config)
+        train_models(state)
     except Exception as exc:
         parser.error(str(exc))
 
