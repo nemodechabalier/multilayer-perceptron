@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 import sys
+import copy
 
 from .mathematical import apply_normalizer, forward, evaluate, backward
 from .utils import save
@@ -84,6 +85,7 @@ def init_network(sizes, seed=1) -> dict :
     rng = np.random.default_rng(seed)   # créé une seule fois
     weights, biases = [], []
     for n_in, n_out in zip(sizes[:-1], sizes[1:]):
+        print(n_in)
         limit = sqrt(6 / n_in)
         weights.append(rng.uniform(-limit, limit, (n_in, n_out)))
         biases.append(np.zeros(n_out))
@@ -106,11 +108,10 @@ def mini_batch(state: TrainState):
     num_epochs = state.config.get("epochs")
     batch_size = state.config.get("batch_size")
     rng = np.random.default_rng(state.config.get("seed"))
-    print("test1")
     m = len(state.y_train)
-    print("test2")
 
     history = {"loss": [], "acc": [], "val_loss": [], "val_acc": []}
+    early_stop = {"multilayer" : copy.deepcopy(state.multilayer), "epoch" : 0, "val_loss" : float("inf"), "last_epoch": 0}
     for epoch in range(num_epochs):
         indices = rng.permutation(m)
         X_shuffled = state.X_train[indices]
@@ -124,12 +125,19 @@ def mini_batch(state: TrainState):
             dW, db = backward(acts, y_batch, state.multilayer, n_layers)
             for l, (W, b) in enumerate(zip(state.multilayer["W"], state.multilayer["b"])):
                 W -= alpha * dW[l] ; b -= alpha * db[l]
-        loss, acc, val_loss, val_acc = evaluate(state)
-        for key, value in zip(history, (loss, acc, val_loss, val_acc)):
+        stats = evaluate(state)
+        for key, value in zip(history, (stats["loss"], stats["acc"], stats["val_loss"], stats["val_acc"])):
             history[key].append(value)
-        print(f"epoch {epoch + 1:02d}/{num_epochs} - loss: {loss:.4f} - val_loss: {val_loss:.4f}"
-              f" - acc: {acc:.4f} - val_acc: {val_acc:.4f}")
-    return state.multilayer, history
+        print(f"epoch {epoch + 1:02d}/{num_epochs} - loss: {stats["loss"]:.4f} - val_loss: {stats["val_loss"]:.4f}"
+              f" - acc: {stats["acc"]:.4f} - val_acc: {stats["val_acc"]:.4f} - precision: {stats["precision"]:.4f}"
+              f" - rappel: {stats["rappel"]:.4f} - F1_score: {stats["F1_score"]:.4f}")
+        if stats["val_loss"] < early_stop["val_loss"] :
+            early_stop = {"multilayer" : copy.deepcopy(state.multilayer), "epoch" : epoch + 1, "val_loss" : stats["val_loss"], "last_epoch" : 0}
+        early_stop["last_epoch"] += 1
+        if early_stop["last_epoch"] > state.config.get("patience"):
+            break
+
+    return state.multilayer, history, early_stop
 
 
 def train_models(state: TrainState):
@@ -150,7 +158,10 @@ def train_models(state: TrainState):
     output_dim = 2
     sizes = [input_dim] + hidden_dims + [output_dim]
     state.multilayer = init_network(sizes, state.config.get("seed"))
-    state.multilayer, history = mini_batch(state)
+    state.multilayer, history, early_stop = mini_batch(state)
+    if early_stop["epoch"] < state.config.get("epochs"):
+        print(f"Early stopping epoch {early_stop["epoch"]} with val_loss {early_stop["val_loss"]}")
+        state.multilayer = early_stop["multilayer"]
     visualisation(history["acc"], history["val_acc"], "Accuracy")
     visualisation(history["loss"], history["val_loss"], "Loss")
     save(state.multilayer, norm_stats, "datasets/model.json",feature_cols)

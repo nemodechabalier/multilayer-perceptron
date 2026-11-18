@@ -7,7 +7,7 @@ SRCS_DIR = CURRENT_DIR.parent
 if str(SRCS_DIR) not in sys.path:
     sys.path.insert(0, str(SRCS_DIR))
 
-from utils import load_dataset, Datasets, load_json
+from utils import load_dataset, load_json
 from ml import predict
 
 

@@ -64,6 +64,11 @@ def validate_config(config: dict) -> dict:
     if path[-1] != '/':
         config["path"] = path + "/"
 
+    patience = config["patience"]
+    if not isinstance(patience, int) or patience < 1:
+        raise ValueError("'patience' must be a int, > 0.")
+
+
 
     return {k: config[k] for k in KEYS}
 

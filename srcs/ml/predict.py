@@ -1,6 +1,11 @@
 import numpy as np
-from .mathematical import apply_normalizer, forward, evaluate, binary_cross_entropy
+from .mathematical import apply_normalizer, forward, binary_cross_entropy, cross_entropy
 
+def evaluate_for_predict(X, y, multilayer):
+    P = forward(X, multilayer)[-1]
+    loss = cross_entropy(P, y)
+    acc = np.mean(np.argmax(P, axis=1) == np.argmax(y, axis=1))
+    return loss, acc
 
 def predict(df, data):
     feature_cols = data["features"]
@@ -19,7 +24,7 @@ def predict(df, data):
     P = forward(X, multilayer)[-1]
     pred = np.argmax(P, axis=1)
     labels = np.where(pred == 0, "M", "B").tolist()
-    loss, acc = evaluate(X, y, multilayer)
+    loss, acc = evaluate_for_predict(X, y, multilayer)
     bce = binary_cross_entropy(P[:, 0], y[:, 0])
     true_labels = df["diagnosis"].to_numpy()
     labels = np.where(pred == 0, "M", "B")

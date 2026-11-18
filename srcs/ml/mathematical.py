@@ -92,9 +92,9 @@ def metrics(state: TrainState, pred):
 
     precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
     rappel = TP / (TP + FN) if (TP + FN) > 0 else 0.0
+    F1_score = 2 * precision * rappel / (precision + rappel) if precision + rappel > 0 else 0.0
 
-    print(f"Precision = {precision:.4f}")
-    print(f"Rappel = {rappel:.4f}")
+    return precision, rappel, F1_score
 
 
 
@@ -107,5 +107,6 @@ def evaluate(state: TrainState):
     P_valid = forward(state.X_valid, state.multilayer)[-1]
     val_loss = cross_entropy(P_valid, state.y_valid)
     val_acc = np.mean(np.argmax(P_valid, axis=1) == np.argmax(state.y_valid, axis=1))
-    metrics(state, P_valid)
-    return loss, acc, val_loss, val_acc
+
+    precision, rappel, F1_score = metrics(state, P_valid)
+    return {"loss": loss, "acc": acc, "val_loss": val_loss, "val_acc": val_acc, "precision": precision, "rappel": rappel, "F1_score": F1_score}

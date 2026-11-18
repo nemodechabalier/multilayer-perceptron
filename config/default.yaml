@@ -3,6 +3,7 @@ epochs: 84
 batch_size: 8
 learning_rate: 0.0314
 correlation: 0.99
-seed : 2
+seed : 6210497281900932540
 path : metrics
+patience : 5
 # 4020393068940812746
