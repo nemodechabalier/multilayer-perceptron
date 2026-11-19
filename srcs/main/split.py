@@ -7,7 +7,7 @@ SRCS_DIR = CURRENT_DIR.parent
 if str(SRCS_DIR) not in sys.path:
     sys.path.insert(0, str(SRCS_DIR))
 
-from utils import load_dataset, Datasets
+from utils import load_dataset
 from data import split_dataset
 
 def main():

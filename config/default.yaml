@@ -1,9 +1,15 @@
 layer: [24,24]
 epochs: 84
 batch_size: 8
-learning_rate: 0.0314
+learning_rate: 0.001
+# learning_rate: 0.0314
 correlation: 0.99
-seed : 6210497281900932540
-path : metrics
-patience : 5
+seed: random
+path: metrics
+patience: 5
+optimizer : adam
+# optimizer : sgd
+early_stopping: yes
+show: no
+
 # 4020393068940812746

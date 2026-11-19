@@ -31,7 +31,7 @@ def predict(df, data):
     wrong = np.flatnonzero(labels != true_labels)
     true_idx = np.where(true_labels == "M", 0, 1)
     for i in wrong:
-        print(f"line {i}: predicted {labels[i]} ({P[i, pred[i]]:.1%}), "
+        print(f"line: {i} - id: {df["sample_id"][i]} - predicted: {labels[i]} ({P[i, pred[i]]:.1%}), "
       f"actual {true_labels[i]} (P({true_labels[i]}) = {P[i, true_idx[i]]:.1%})")
     print(f"total: {len(wrong)} errors on {len(true_labels)}")
     

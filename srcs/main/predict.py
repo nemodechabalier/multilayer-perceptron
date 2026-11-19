@@ -38,6 +38,9 @@ def main() -> int:
             print("Unable to load dataset.")
             return 1
         data = load_json(args.logreg_weights)
+        if data is None:
+            print("Unable to load json.")
+            return 1
         predict(df, data)
     except Exception as e:
         print(f"Error: {e}")

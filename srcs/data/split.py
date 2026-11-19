@@ -9,9 +9,9 @@ SRCS_DIR = CURRENT_DIR.parent
 if str(SRCS_DIR) not in sys.path:
     sys.path.insert(0, str(SRCS_DIR))
 
-from utils import load_dataset, Datasets, save_dataset
+from utils import load_dataset, save_dataset
 
-def split_dataset(dataset_path: Path, train_size: float, output_dir: Path) -> Datasets:
+def split_dataset(dataset_path: Path, train_size: float, output_dir: Path) :
     """Split the dataset into training and testing sets."""
     if train_size <= 0.1 or train_size >= 0.9:
         raise ValueError("train_size must be a float between 0.1 and 0.9.")
@@ -28,7 +28,7 @@ def split_dataset(dataset_path: Path, train_size: float, output_dir: Path) -> Da
         train, test = train_test_split(df,
                                                  train_size=train_size,
                                                  stratify=df[label_col],
-                                                 random_state=42)
+                                                 random_state=3)
         train = train.reset_index(drop=True)
         test = test.reset_index(drop=True)
         print(f"Dataset split into training set of shape {train.shape} and testing set of shape {test.shape}")
